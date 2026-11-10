@@ -39,3 +39,6 @@ uv sync     # creates .venv with the runtime deps + the dev group
 - `plan_deadline_s` timeout yields `mode=None` with both searches marked `missing`.
 - Revision 2 removed the link flow: `Deps` is just settings + exa + jev, and the app has only
   `/vapi/webhook` and `/healthz` (app_test asserts the route set).
+- `vapi.mask_secrets` masks the `apiKey` and `x-bling-secret` keys (used by `vapi-sync --dry-run`).
+  `VapiApi` errors include Vapi's `message`, with the API key and any body secrets scrubbed out,
+  because Vapi validation messages can quote the values they reject.

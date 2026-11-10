@@ -18,29 +18,46 @@ from .pipeline import plan_trip, reply_text
 log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
-    "You are Bling. You help someone decide whether to drive or take public transit. Get the "
-    "destination (and the origin and arrival time if they offer them), then call plan_trip and "
-    "relay its answer briefly, word for word on facts. Never guess traffic or transit conditions "
-    "yourself. In a text conversation: if the person wants to hear the recommendation, call "
-    'voice_link with mode "review"; if they want to explain their situation by voice, call '
-    'voice_link with mode "explain". Send the link exactly as returned. Keep replies under two '
-    "sentences."
+    "You are Bling, a voice assistant that helps someone in the San Francisco Bay Area decide "
+    "whether to drive or take public transit. Get the destination, and the origin and arrival "
+    "time if they offer them. If they mention their circumstances (luggage, kids, mobility, "
+    "budget, parking, urgency), pass them as situation. Ask at most one short follow-up. Then "
+    "call plan_trip and say its answer in your own words, keeping every fact. Never guess "
+    "traffic or transit conditions yourself. Speak in short sentences. No lists, no URLs."
 )
 
-_TRIP_PROPS = {
-    "destination": {"type": "string", "description": "Where the person is going."},
-    "origin": {"type": "string", "description": "Where they are starting from, if given."},
-    "arrive_by": {"type": "string", "description": "When they need to arrive, as they said it."},
-}
+KEYTERMS: list[str] = [
+    "BART", "Muni", "Caltrain", "AC Transit", "VTA", "SamTrans", "Golden Gate Transit",
+    "Salesforce Transit Center", "Embarcadero", "SFO", "Oakland Airport", "San Jose Airport",
+    "Bay Bridge", "Golden Gate Bridge", "San Mateo Bridge", "Dumbarton Bridge", "Richmond Bridge",
+    "US-101", "I-80", "I-280", "I-580", "I-680", "I-880", "Highway 1",
+]
+
+SITUATION_DESCRIPTION = (
+    "Anything the caller said about their circumstances that could change the choice: luggage, "
+    "kids, mobility, budget, parking, being in a hurry, the weather where they are. Omit it if "
+    "they said nothing."
+)
 
 PLAN_TRIP_TOOL = {
     "type": "function",
     "function": {
         "name": "plan_trip",
         "description": "Check live traffic and transit conditions and decide: drive or take transit.",
-        "parameters": {"type": "object", "properties": _TRIP_PROPS, "required": ["destination"]},
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "destination": {"type": "string", "description": "Where the caller is going."},
+                "origin": {"type": "string", "description": "Where they are starting from, if given."},
+                "arrive_by": {"type": "string", "description": "When they need to arrive, as they said it."},
+                "situation": {"type": "string", "description": SITUATION_DESCRIPTION},
+            },
+            "required": ["destination"],
+        },
     },
+    "messages": [{"type": "request-start", "content": "Let me check the roads and transit."}],
 }
+
 
 class ToolError(Exception):
     """A user-facing tool failure; its message goes back to Vapi as `error`."""
@@ -69,7 +86,12 @@ def _trip(args: dict[str, Any]) -> TripRequest:
         v = args.get(k)
         return v.strip() or None if isinstance(v, str) else None
 
-    return TripRequest(destination=dest.strip(), origin=opt("origin"), arrive_by=opt("arrive_by"))
+    return TripRequest(
+        destination=dest.strip(),
+        origin=opt("origin"),
+        arrive_by=opt("arrive_by"),
+        situation=opt("situation"),
+    )
 
 
 async def tool_plan_trip(args: dict[str, Any], deps: Deps) -> str:
@@ -118,11 +140,17 @@ async def handle_message(body: Any, deps: Deps) -> dict[str, Any]:
 
 def assistant_body(settings: Settings) -> dict[str, Any]:
     base = (settings.public_base_url or "").rstrip("/")
-    return {
+    body: dict[str, Any] = {
         "name": "Bling",
         "firstMessage": "Hey, it's Bling. Where are you headed?",
-        "transcriber": {"provider": "deepgram", "model": settings.deepgram_stt_model},
-        "voice": {"provider": "deepgram", "voiceId": "asteria"},
+        "transcriber": {
+            "provider": "deepgram",
+            "model": settings.deepgram_stt_model,
+            "language": "en",
+            "keyterm": list(KEYTERMS),
+            "endpointing": 300,
+        },
+        "voice": {"provider": "deepgram", "voiceId": settings.vapi_voice_id},
         "model": {
             "provider": settings.vapi_llm_provider,
             "model": settings.vapi_llm_model,
@@ -137,6 +165,44 @@ def assistant_body(settings: Settings) -> dict[str, Any]:
         },
         "serverMessages": ["tool-calls"],
     }
+    if settings.deepgram_api_key is not None:
+        body["credentials"] = [
+            {"provider": "deepgram", "apiKey": settings.deepgram_api_key.get_secret_value()}
+        ]
+    return body
+
+
+SECRET_KEYS = {"apiKey", "x-bling-secret"}
+
+
+def mask_secrets(value: Any) -> Any:
+    """A copy of an assistant body with every secret value replaced by "***"."""
+    if isinstance(value, dict):
+        return {k: "***" if k in SECRET_KEYS else mask_secrets(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [mask_secrets(v) for v in value]
+    return value
+
+
+def _secret_values(value: Any) -> list[str]:
+    if isinstance(value, dict):
+        out = [v for k, v in value.items() if k in SECRET_KEYS and isinstance(v, str) and v]
+        return out + [s for v in value.values() for s in _secret_values(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in _secret_values(v)]
+    return []
+
+
+def _vapi_error(r: httpx.Response) -> str:
+    """Vapi's own error message, never anything from the request (it carries keys)."""
+    try:
+        data = r.json()
+    except ValueError:
+        return ""
+    msg = data.get("message") or data.get("error") if isinstance(data, dict) else None
+    if isinstance(msg, list):
+        msg = "; ".join(str(m) for m in msg)
+    return str(msg)[:300] if msg else ""
 
 
 class VapiApi:
@@ -154,7 +220,12 @@ class VapiApi:
             timeout=30.0,
         )
         if not r.is_success:
-            raise RuntimeError(f"vapi {method} {path} HTTP {r.status_code}")
+            detail = _vapi_error(r)
+            for secret in [self._key, *_secret_values(body)]:
+                detail = detail.replace(secret, "***")
+            raise RuntimeError(
+                f"vapi {method} {path} HTTP {r.status_code}" + (f": {detail}" if detail else "")
+            )
         return r.json()
 
     def create_assistant(self, body: dict[str, Any]) -> dict[str, Any]:
