@@ -34,3 +34,9 @@ uv sync     # creates .venv with the runtime deps + the dev group
 - `typesafe-sdk` default retries (2, up to 5 s backoff) blow the voice budget. Construct it with
   `retry=RetryPolicy(max_retries=0)` and `timeout=settings.jev_timeout_s`.
 - Vapi tool results must echo `toolCallId` exactly and be flat strings.
+- Exa/Jev prompt literals exceed 100 chars; those modules carry a file-level `# ruff: noqa: E501`.
+- `decision.decide` imports `pipeline.reply_text` lazily (and vice versa) to avoid an import cycle.
+- `plan_deadline_s` timeout yields `mode=None` with both searches marked `missing`.
+- Explain uploads: `/e/{token}/audio` saves the transcript as `trip.situation` on the explain
+  record, marks it used, and mints a fresh review token; `/v/{token}/audio` 503s when Deepgram
+  isn't configured.

@@ -6,6 +6,6 @@
 - [x] P0 — deepgram.py (transcribe, speak) + links.py LinkStore + tests (respx, tmp_path) — spec: SPEC.md §6–7
 - [x] P0 — vapi.py webhook handling (secret, tool-calls, plan_trip, voice_link) + assistant_body + VapiApi + tests — spec: SPEC.md §8
 - [x] P0 — app.py (create_app, lifespan, all routes incl. /v and /e pages from pages.py) + app_test with TestClient and fakes — spec: SPEC.md §7, §9
-- [ ] P1 — cli.py (ask, serve, vapi-sync) + cli_test with typer CliRunner; README "Run it" section — spec: SPEC.md §9
+- [x] P1 — cli.py (ask, serve, vapi-sync) + cli_test with typer CliRunner; README "Run it" section — spec: SPEC.md §9
 
 ## Discovered

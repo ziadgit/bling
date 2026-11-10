@@ -30,3 +30,16 @@ it in this repo. Esc interrupts it; if anything is left, say "continue with PROM
    don't send).
 5. Text it: "Oakland to Salesforce Transit Center by 6, can I get a voice review?" or
    "I'm going to SFO, I want to explain my situation by voice."
+
+## Run it
+
+```sh
+uv sync
+.venv/bin/bling ask "Salesforce Transit Center" --from "Oakland" --by 6pm
+.venv/bin/bling ask "SFO" --situation "I have two big suitcases"
+.venv/bin/bling serve --port 8000        # webhook at /vapi/webhook, links at /v/* and /e/*
+.venv/bin/bling vapi-sync                # needs VAPI_API_KEY, VAPI_SERVER_SECRET, PUBLIC_BASE_URL
+.venv/bin/pytest -q                      # tests never touch the network
+```
+
+Without `EXA_API_KEY`/`TYPESAFE_API_KEY`, `ask` still runs and says it couldn't check or decide.
