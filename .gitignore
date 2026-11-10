@@ -1,0 +1,20 @@
+__pycache__/
+*.py[codz]
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Secrets
+.env
+.envrc
+.claude/settings.local.json
+
+# Bling
+logs/
+data/
+.DS_Store
