@@ -12,7 +12,6 @@ dependencies = [
     "typer",
     "pydantic-settings",
     "httpx",
-    "python-multipart",
 ]
 
 [project.scripts]

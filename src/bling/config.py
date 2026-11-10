@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     vapi_assistant_id: str | None = None
     vapi_llm_provider: str = "openai"
     vapi_llm_model: str = "gpt-4.1"
+    vapi_voice_id: str = "asteria"
     jev_model: str = "jev-1.13.0"
     deepgram_stt_model: str = "nova-3"
     deepgram_tts_model: str = "aura-2-thalia-en"
@@ -26,7 +27,6 @@ class Settings(BaseSettings):
     exa_timeout_s: float = 5.0
     jev_timeout_s: float = 2.5
     plan_deadline_s: float = 8.0
-    link_ttl_hours: int = 24
 
 
 def require(value: SecretStr | None, name: str) -> str:

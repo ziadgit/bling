@@ -10,7 +10,8 @@ def test_defaults():
     assert s.jev_model == "jev-1.13.0"
     assert s.bling_region == "San Francisco Bay Area, CA"
     assert s.plan_deadline_s == 8.0
-    assert s.link_ttl_hours == 24
+    assert s.vapi_voice_id == "asteria"
+    assert not hasattr(s, "link_ttl_hours")
 
 
 def test_env_and_dotenv(monkeypatch, tmp_path):

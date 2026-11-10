@@ -7,13 +7,12 @@ from pydantic import SecretStr
 
 from bling.config import Settings
 from bling.decision_test import FakeJev
-from bling.links import LinkStore
 from bling.vapi import SYSTEM_PROMPT, Deps, VapiApi, assistant_body, check_secret, handle_message
 
 
 def deps(tmp_path, **kw):
     s = Settings(vapi_server_secret=SecretStr("sek"), **kw)
-    return Deps(settings=s, links=LinkStore(tmp_path / "links", 24), jev=FakeJev("drive"))
+    return Deps(settings=s, jev=FakeJev("drive"))
 
 
 def body(*calls, type="tool-calls"):
@@ -57,34 +56,6 @@ async def test_other_types(tmp_path):
     assert await handle_message({}, deps(tmp_path)) == {}
 
 
-async def test_voice_link(tmp_path):
-    d = deps(tmp_path, public_base_url="https://b.example")
-    out = await handle_message(
-        body(
-            call("r", "voice_link", {"mode": "review", "destination": "SFO"}),
-            call("e", "voice_link", {"mode": "explain", "destination": "SFO"}),
-        ),
-        d,
-    )
-    review, explain = (x["result"] for x in out["results"])
-    assert review.startswith("Drive.") and " Listen here: https://b.example/v/" in review
-    tok = review.rsplit("/", 1)[1]
-    assert d.links.get(tok).kind == "review" and d.links.get(tok).rec.mode == "drive"
-    assert explain.startswith(
-        "Record your situation here and I'll decide with it: https://b.example/e/"
-    )
-    etok = explain.rsplit("/", 1)[1]
-    assert d.links.get(etok).kind == "explain" and d.links.get(etok).rec is None
-
-
-async def test_voice_link_unconfigured(tmp_path):
-    out = await handle_message(
-        body(call("x", "voice_link", {"mode": "review", "destination": "SFO"})), deps(tmp_path)
-    )
-    assert out["results"][0] == {
-        "name": "voice_link", "toolCallId": "x", "error": "Voice links aren't set up yet."}
-
-
 def test_assistant_body():
     s = Settings(vapi_server_secret=SecretStr("sek"), public_base_url="https://b.example")
     b = assistant_body(s)
@@ -93,7 +64,7 @@ def test_assistant_body():
     assert b["model"]["provider"] == "openai" and b["model"]["model"] == "gpt-4.1"
     assert b["model"]["messages"] == [{"role": "system", "content": SYSTEM_PROMPT}]
     names = [t["function"]["name"] for t in b["model"]["tools"]]
-    assert names == ["plan_trip", "voice_link"]
+    assert names == ["plan_trip"]
     assert b["transcriber"] == {"provider": "deepgram", "model": "nova-3"}
     assert b["voice"] == {"provider": "deepgram", "voiceId": "asteria"}
     assert b["serverMessages"] == ["tool-calls"]

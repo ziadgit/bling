@@ -46,7 +46,7 @@ def ask(
 
 @app.command()
 def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Run the web server (Vapi webhook and voice links)."""
+    """Run the web server (the Vapi webhook)."""
     import uvicorn
 
     from .app import create_app

@@ -13,7 +13,6 @@ import httpx
 
 from .config import Settings, require
 from .domain import TripRequest
-from .links import LinkStore
 from .pipeline import plan_trip, reply_text
 
 log = logging.getLogger(__name__)
@@ -42,19 +41,6 @@ PLAN_TRIP_TOOL = {
         "parameters": {"type": "object", "properties": _TRIP_PROPS, "required": ["destination"]},
     },
 }
-VOICE_LINK_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "voice_link",
-        "description": "Text only: make a link to hear the recommendation (review) or record the rider's situation (explain).",
-        "parameters": {
-            "type": "object",
-            "properties": {"mode": {"type": "string", "enum": ["review", "explain"]}, **_TRIP_PROPS},
-            "required": ["mode", "destination"],
-        },
-    },
-}
-
 
 class ToolError(Exception):
     """A user-facing tool failure; its message goes back to Vapi as `error`."""
@@ -63,10 +49,8 @@ class ToolError(Exception):
 @dataclass
 class Deps:
     settings: Settings
-    links: LinkStore
     exa: Any = None
     jev: Any = None
-    deepgram: Any = None
 
 
 def check_secret(header: str | None, settings: Settings) -> bool:
@@ -93,24 +77,7 @@ async def tool_plan_trip(args: dict[str, Any], deps: Deps) -> str:
     return reply_text(rec)
 
 
-async def tool_voice_link(args: dict[str, Any], deps: Deps) -> str:
-    base = deps.settings.public_base_url
-    if not base:
-        raise ToolError("Voice links aren't set up yet.")
-    base = base.rstrip("/")
-    mode = args.get("mode")
-    trip = _trip(args)
-    if mode == "review":
-        rec = await plan_trip(trip, exa=deps.exa, jev=deps.jev, settings=deps.settings)
-        token = deps.links.create("review", trip, rec)
-        return f"{rec.text} Listen here: {base}/v/{token}"
-    if mode == "explain":
-        token = deps.links.create("explain", trip)
-        return f"Record your situation here and I'll decide with it: {base}/e/{token}"
-    raise ToolError('mode must be "review" or "explain".')
-
-
-TOOLS = {"plan_trip": tool_plan_trip, "voice_link": tool_voice_link}
+TOOLS = {"plan_trip": tool_plan_trip}
 
 
 async def _run_call(call: Any, deps: Deps) -> dict[str, Any]:
@@ -160,7 +127,7 @@ def assistant_body(settings: Settings) -> dict[str, Any]:
             "provider": settings.vapi_llm_provider,
             "model": settings.vapi_llm_model,
             "messages": [{"role": "system", "content": SYSTEM_PROMPT}],
-            "tools": [PLAN_TRIP_TOOL, VOICE_LINK_TOOL],
+            "tools": [PLAN_TRIP_TOOL],
         },
         "server": {
             "url": f"{base}/vapi/webhook",

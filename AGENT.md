@@ -37,6 +37,5 @@ uv sync     # creates .venv with the runtime deps + the dev group
 - Exa/Jev prompt literals exceed 100 chars; those modules carry a file-level `# ruff: noqa: E501`.
 - `decision.decide` imports `pipeline.reply_text` lazily (and vice versa) to avoid an import cycle.
 - `plan_deadline_s` timeout yields `mode=None` with both searches marked `missing`.
-- Explain uploads: `/e/{token}/audio` saves the transcript as `trip.situation` on the explain
-  record, marks it used, and mints a fresh review token; `/v/{token}/audio` 503s when Deepgram
-  isn't configured.
+- Revision 2 removed the link flow: `Deps` is just settings + exa + jev, and the app has only
+  `/vapi/webhook` and `/healthz` (app_test asserts the route set).
