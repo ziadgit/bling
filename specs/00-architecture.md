@@ -389,9 +389,10 @@ with one `results[]` entry per call, echoing `toolCallId`. The value goes in eit
   - Asserts that `build_services(Settings(_env_file=None))` with no keys returns `exa is None`,
     `jev is None`, `sms is None`, `vapi is None`, and `travel` as the null provider.
   - Asserts that, with dummy keys, `build_services` returns non-`None` clients and makes no
-    request. This runs under `respx.mock(assert_all_mocked=True)` with no routes. AsyncExa uses
-    httpx, per the exa-py README. Spec 05 confirms that TypeSafe does too, and if it doesn't,
-    replaces this check with a constructor-level fake.
+    request. For `AsyncExa`, which uses httpx, this runs under
+    `respx.mock(assert_all_mocked=True)` with no routes. `typesafe-sdk` 0.7.5 uses **`httpx2`**,
+    not httpx (spec 01, open question 11), so respx cannot see it. For the TypeSafe client the
+    check is constructor-level instead, as spec 05 defines it.
   - Asserts that `aclose()` awaits every closer even when one raises.
 - Specs 09 (`app_test.py`, `cli_test.py`) and 07 / 08 own the tests for acceptance criteria 4–6.
 - The fakes in `bling/testing/fakes.py` satisfy each protocol structurally, and mypy checks

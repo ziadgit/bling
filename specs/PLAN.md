@@ -4,7 +4,7 @@ The spec phase (`PROMPT_FILE=PROMPT.spec.md ./ralph.sh`) writes one spec per loo
 Check a spec off only once it is written and self-checked.
 
 - [x] 00-architecture: modules, data flow, directory layout, CLI and HTTP surface
-- [ ] 01-scaffold: pyproject (uv, hatchling, src layout, PEP 735 dev group), Settings, logging, test layout
+- [x] 01-scaffold: pyproject (uv, hatchling, src layout, PEP 735 dev group), Settings, logging, test layout
 - [ ] 02-domain-model: TripRequest, Conditions, Incident, TransitAlert, Recommendation, caller profile store (SQLite)
 - [ ] 03-exa-conditions: Exa `/search` calls (queries, objectives, output schemas, system prompts, freshness, timeouts, fakes)
 - [ ] 04-travel-times: optional duration estimates (verify provider docs live; graceful absence)
@@ -25,3 +25,9 @@ Scope that spec 00 hands to later specs (no new spec files needed):
 - 06: the deadline split inside 8 s at the HTTP boundary, and the "no verdict without Jev" reply.
 - 08: also owns `parse.py`, free text → TripRequest, reused by `bling ask`.
 - 09: `app.py` (not `http.py`), docs routes disabled, `__main__.py`.
+
+Handed on by spec 01:
+- 05: `typesafe-sdk` 0.7.5 runs on **`httpx2`**, not httpx, so respx cannot intercept it. Fake Jev only at `JevClient`, and define the constructor-level "no I/O" check for `services_test`. Map `Settings.jev_max_retries` to `RetryPolicy(max_retries=...)`. Decide whether to move the default to `jev-1.14.0`.
+- 03/04/05/07/08: client-ceiling timeouts already exist in `Settings` (`exa_timeout_s`, `jev_timeout_s`, `travel_timeout_s`, `vapi_http_timeout_s`, `sms_http_timeout_s`, `web_search_timeout_s`). The overall budget is `plan_deadline_s=7.0`, and spec 06 splits it. Region and timezone come from `bling_region` and `bling_timezone`.
+- 04/08: set the real defaults for `price_travel_usd_per_request` and `price_sms_usd_per_message` (both 0.0 for now). 08 adds the SMS secrets as `SecretStr | None = None`.
+- 11: the `phone_hash` key is per process, so hashes don't match across processes. Note this in the log guide.
