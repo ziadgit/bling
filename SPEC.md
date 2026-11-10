@@ -254,6 +254,12 @@ and `update_assistant(id, body)` is `PATCH https://api.vapi.ai/assistant/{id}`, 
 `Authorization: Bearer`. A non-2xx response raises with the status code and Vapi's error
 message, which must never echo the request body (it contains keys).
 
+**Phone number (manual, not code).** Bling uses a **Free Vapi Number** (a real US number,
+area code 415, or 628/510 if unavailable), created in the Vapi dashboard, with
+**Inbound Settings → Assistant** set to Bling. A Free Vapi SIP address is not used: it can't be
+dialed from a normal phone. No code manages phone numbers; the webhook works the same for any
+number attached to the assistant.
+
 ## 8. App (`app.py`)
 
 `create_app(settings=None, *, exa=None, jev=None) -> FastAPI`. In the lifespan, it builds real

@@ -25,8 +25,10 @@ with PROMPT.md".
 3. `bling vapi-sync --dry-run` to check the assistant, then `bling vapi-sync` to create it (Deepgram
    transcriber + voice + your Deepgram key, the plan_trip tool, the webhook). Add the printed
    `VAPI_ASSISTANT_ID` to `.env`.
-4. Test with **Talk to Assistant** in the Vapi dashboard (a browser call, no phone number
-   needed), or attach a Vapi phone number to the assistant and call it.
+4. Test with **Talk to Assistant** in the Vapi dashboard (a browser call, no phone number needed).
+5. Get a phone number: Vapi dashboard → Phone Numbers → Create Phone Number → **Free Vapi Number**
+   (not Free Vapi SIP), area code `415` (or `628`/`510`). Open it, set **Inbound Settings →
+   Assistant** to Bling, save, and call it from your phone.
 
 ## Run it
 
