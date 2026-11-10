@@ -1,36 +1,27 @@
 # Bling
 
-Call or text Bling where you're going. It checks live traffic and transit conditions with
-**Exa**, lets **Jev** decide, and tells you whether to **drive** or **take transit**, and why.
-Voice runs on **Vapi**.
+Text or call Bling where you're going. It checks live traffic and transit with **Exa**, lets
+**Jev** decide, and tells you whether to **drive** or **take transit**, and why. Over text you can
+ask for a **voice link**: hear the recommendation (Deepgram TTS), or record your situation and
+let Bling re-decide with it (Deepgram transcription).
 
-This repo is a **Ralph seed**: the app is written by an autonomous loop from `IDEA.md`.
-
-## Setup
-
-```sh
-cp .env.example .env      # then fill in EXA_API_KEY, TYPESAFE_API_KEY, VAPI_* keys
-```
+This branch (`fast-27`) is a **27-minute Ralph build**: `SPEC.md` + `fix_plan.md` (7 items).
 
 ## Build it
 
 ```sh
-# 1. Spec phase: writes specs/NN-*.md one per loop, then generates fix_plan.md
-PROMPT_FILE=PROMPT.spec.md MAX_ITERATIONS=14 ./ralph.sh
-
-# 2. Build phase: drains fix_plan.md one item per loop
-MAX_ITERATIONS=10 ./ralph.sh
+./ralph.sh     # claude --dangerously-skip-permissions, one fix_plan item per iteration, 27-minute hard stop
 ```
 
-`ralph.sh` runs `claude --print --dangerously-skip-permissions`, so the agent acts with no
-confirmation. Ctrl-C stops it. `MAX_ITERATIONS=0` means unlimited.
+## Set up the services (after the build)
 
-## Layout
-
-- `IDEA.md`: locked vision, decisions, Exa rules, constraints
-- `specs/`: source of truth (`PLAN.md` is the index)
-- `PROMPT.spec.md` / `PROMPT.md`: spec-phase and build-phase loop prompts
-- `fix_plan.md`: build backlog
-- `AGENT.md`: stack, commands, gotchas
-- `.claude/skills/build-with-exa/`: Exa's official skill (MIT), auto-loaded by Claude Code
-- `reference/avicv_jev.py`: working Jev / `typesafe-sdk` usage from avicv
+1. `cp .env.example .env` and fill in the keys (Exa, TypeSafe, Deepgram, Vapi, a server secret).
+2. Expose the server: `bling serve`, plus a tunnel (e.g. `cloudflared tunnel --url http://localhost:8000`).
+   Put its https URL in `PUBLIC_BASE_URL`.
+3. `bling vapi-sync` creates the assistant (Deepgram transcriber + voice, tools, webhook). Add the
+   printed `VAPI_ASSISTANT_ID` to `.env`.
+4. **Texting needs a Twilio number**: import an A2P 10DLC-registered Twilio number into Vapi with
+   SMS enabled, then attach the Bling assistant under Inbound Settings. Vapi SMS is US-to-US only,
+   you must text first, and the Vapi account needs a payment method (otherwise replies silently
+   don't send).
+5. Text it: "Union Station by 6, can I get a voice review?" or "I want to explain my situation by voice."

@@ -1,58 +1,38 @@
-# Ralph: one loop
+# Ralph: one loop (27-minute build)
 
-You are Ralph, in the **build phase**. Each loop you do EXACTLY ONE thing. You never tell
-yourself "good enough." Always leave the codebase better than you found it.
+You are Ralph. Each loop you finish EXACTLY ONE `fix_plan.md` item, completely, then commit and
+exit. The whole build has a hard 27-minute wall clock, so be fast and decisive: no exploration
+beyond what the item needs, no subagents unless a read would flood your context.
 
-## Phase 0: Read (parallel subagents, max 10)
+## 1. Read (directly, no subagents)
 
-1. `AGENT.md`: build, run, test, gotchas
-2. `fix_plan.md`: the prioritized backlog
-3. Every file under `specs/**/*.md`: the source of truth
-4. `git log -5 --stat`
-5. If the item touches Exa: `.claude/skills/build-with-exa/SKILL.md` and the referenced
-   `references/*.md`. **The skill beats memory and beats any example you remember.**
+`SPEC.md` (the source of truth), `fix_plan.md`, `AGENT.md`, `git log --oneline -5`, and the
+existing files under `src/bling/` that your item touches. If the item uses Exa, read
+`.claude/skills/build-with-exa/SKILL.md`. If it uses Jev, read `reference/avicv_jev.py`.
 
-## Phase 1: Pick ONE thing
+## 2. Pick
 
-If `fix_plan.md` still reads `SPECS-PENDING`, **stop** and tell the operator to run the spec phase
-first (`PROMPT_FILE=PROMPT.spec.md ./ralph.sh`). Do not invent code without specs.
+The topmost unchecked `- [ ]` item. If an earlier item is checked but its code is broken (the
+tests fail), fix that first; that counts as this loop.
 
-Otherwise pick the SINGLE highest-priority unchecked item that is **well-specified**,
-**unblocked** (no open `blocked-by:`), and **one-loop sized** (≤ ~500 lines net).
-If nothing qualifies, regenerate `fix_plan.md` from `specs/` and the code state, then stop.
+## 3. Implement
 
-## Phase 2: Implement
+- Fully. No `TODO`, no stubs, no `NotImplementedError`.
+- Tests beside code (`foo.py` → `foo_test.py`). No live network in tests, ever (respx, fakes).
+- To learn an SDK's real attribute names, inspect the installed package in `.venv` (for example
+  `.venv/bin/python -c "import exa_py, inspect; ..."`), instead of guessing.
+- Never call Exa, TypeSafe, Deepgram or Vapi for real, even if keys exist in `.env`.
+- Never print, log or commit secrets.
 
-- **Search before assuming.** Prove "X doesn't exist yet" with a subagent grep.
-- **NO placeholders.** No `TODO`, no `NotImplementedError`, no stubs.
-- **Tests beside code.** `foo.py` → `foo_test.py` in the same folder.
-- **No live network in the loop.** Tests mock HTTP with `respx` and fake the Exa / TypeSafe
-  clients at their protocol boundary. Never call Exa, Vapi, TypeSafe, or SMS APIs for real
-  during a build loop, even if keys are present.
-- **Exa lint** on every call you write: `objective` set, `contents={"highlights": True}`,
-  snake_case kwargs, nothing from the skill's "gated" list without a spec justification.
-  Add a test that asserts the exact kwargs sent to `exa.search`.
-- **Never log secrets or raw phone numbers.**
-- **Spec is truth.** If the spec is wrong, STOP, fix the spec under `specs/`, add a `fix_plan.md`
-  item, end the loop.
+## 4. Verify (must pass before commit)
 
-## Phase 3: Verify (ONE subagent only)
+```sh
+.venv/bin/ruff check . --fix && .venv/bin/ruff check .
+.venv/bin/pytest -x -q
+```
 
-Run IN ORDER, and fix any failure in THIS loop:
+## 5. Record and exit
 
-1. `.venv/bin/ruff check .`
-2. `.venv/bin/mypy src/bling`
-3. `.venv/bin/pytest -x -q`
-4. `.venv/bin/python -c "import bling"`
-
-## Phase 4: Record
-
-- Check off the item in `fix_plan.md` (`[ ]` → `[x]`, never delete).
-- Append newly discovered work under `## Discovered` in `fix_plan.md`.
-- Append new commands or gotchas to the bottom of `AGENT.md` "Gotchas".
-- Commit: `<scope>: <what changed>` (≤ 72 chars). End the loop.
-
-## Rules
-
-- **One thing per loop.** **No placeholders.** **Search before you assume.** **Spec is truth.**
-- **End the loop cleanly.** Commit, then exit.
+Check the item off (`[ ]` → `[x]`). Put any new gotcha at the bottom of `AGENT.md`. Put any
+unavoidable follow-up under `## Discovered` in `fix_plan.md` as `- [ ] P2 — ...`. Then
+`git add -A && git commit -m "<scope>: <what>"` and stop. One item per loop.
