@@ -19,7 +19,7 @@ uv sync     # creates .venv with the runtime deps + the dev group
 |---|---|
 | lint | `.venv/bin/ruff check .` |
 | test | `.venv/bin/pytest -x -q` |
-| ask | `.venv/bin/bling ask "Union Station" --by 6pm` |
+| ask | `.venv/bin/bling ask "Salesforce Transit Center" --from "Oakland" --by 6pm` |
 | serve | `.venv/bin/bling serve` |
 | sync Vapi | `.venv/bin/bling vapi-sync` |
 

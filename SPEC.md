@@ -53,7 +53,7 @@ objects for Exa and Jev (they are duck-typed parameters, not imported clients). 
 | vapi_llm_provider / vapi_llm_model | str | `"openai"` / `"gpt-4.1"` |
 | jev_model | str | `"jev-1.13.0"` |
 | deepgram_stt_model / deepgram_tts_model | str | `"nova-3"` / `"aura-2-thalia-en"` |
-| bling_region | str | `"Chicago, IL"` |
+| bling_region | str | `"San Francisco Bay Area, CA"` |
 | bling_data_dir | Path | `Path("data")` |
 | public_base_url | `str \| None` | None (https, no trailing slash) |
 | exa_timeout_s / jev_timeout_s / plan_deadline_s | float | 5.0 / 2.5 / 8.0 |
@@ -180,7 +180,7 @@ deadline is cancelled. If `exa` is `None`, conditions are empty with `missing=["
 
 `reply_text(rec) -> str` (≤ 320 chars, plain sentences, no URLs):
 - the verdict first: "Drive." / "Take transit." / "Either works." / "I couldn't make the call right now."
-- then the most severe incident ("On the road: I-90: crash closing two lanes.") or "No reported
+- then the most severe incident ("On the road: US-101: crash blocking two lanes.") or "No reported
   traffic problems."; then the most severe alert, or "Transit is running normally.". If a
   search is in `missing`, say "I couldn't check traffic" / "I couldn't check transit" instead.
 - truncate cleanly at a word boundary.

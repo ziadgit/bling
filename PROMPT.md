@@ -1,38 +1,37 @@
-# Ralph: one loop (27-minute build)
+# Build Bling in one session (27-minute time box)
 
-You are Ralph. Each loop you finish EXACTLY ONE `fix_plan.md` item, completely, then commit and
-exit. The whole build has a hard 27-minute wall clock, so be fast and decisive: no exploration
-beyond what the item needs, no subagents unless a read would flood your context.
+You are running with `--dangerously-skip-permissions` in this repo. Build the whole app described
+in `SPEC.md` by working through `fix_plan.md` top to bottom, in this one session, in
+**27 minutes of wall-clock time**.
 
-## 1. Read (directly, no subagents)
+## Start
 
-`SPEC.md` (the source of truth), `fix_plan.md`, `AGENT.md`, `git log --oneline -5`, and the
-existing files under `src/bling/` that your item touches. If the item uses Exa, read
-`.claude/skills/build-with-exa/SKILL.md`. If it uses Jev, read `reference/avicv_jev.py`.
+1. Run `date +%s > .build_start` (it's gitignored). That is t=0.
+2. Read `SPEC.md` (the source of truth), `fix_plan.md`, `AGENT.md`, and
+   `.claude/skills/build-with-exa/SKILL.md`. Read `reference/avicv_jev.py` before the Jev item.
 
-## 2. Pick
+## For each unchecked `- [ ]` item, in order
 
-The topmost unchecked `- [ ]` item. If an earlier item is checked but its code is broken (the
-tests fail), fix that first; that counts as this loop.
+1. **Check the clock:** `echo $(( $(date +%s) - $(cat .build_start) ))`. If 25 minutes (1500 s)
+   or more have passed, go to "Finish" now.
+2. **Implement the item fully.** No `TODO`s, no stubs. Tests sit beside the code (`foo.py` →
+   `foo_test.py`).
+3. **Verify:** `.venv/bin/ruff check . --fix && .venv/bin/ruff check . && .venv/bin/pytest -x -q`.
+   Fix any failure before moving on.
+4. **Record:** check the item off (`[ ]` → `[x]`), add any gotcha to the bottom of `AGENT.md`,
+   then `git add -A && git commit -m "<scope>: <what>"`.
 
-## 3. Implement
+## Rules
 
-- Fully. No `TODO`, no stubs, no `NotImplementedError`.
-- Tests beside code (`foo.py` → `foo_test.py`). No live network in tests, ever (respx, fakes).
-- To learn an SDK's real attribute names, inspect the installed package in `.venv` (for example
-  `.venv/bin/python -c "import exa_py, inspect; ..."`), instead of guessing.
-- Never call Exa, TypeSafe, Deepgram or Vapi for real, even if keys exist in `.env`.
-- Never print, log or commit secrets.
+- Be fast and decisive. Don't explore beyond what the item needs. SPEC.md decisions are final.
+  If something is impossible as written, make the smallest change and note it in `AGENT.md`.
+- To learn an SDK's real attribute names, inspect the installed package in `.venv` instead of guessing.
+- **No live network calls to Exa, TypeSafe, Deepgram or Vapi**, even though keys may be in
+  `.env`. Tests use respx and fakes. (Installing packages with `uv sync` is fine.)
+- Never print, log or commit secrets. Never read `.env` values into your output.
+- Stay inside this repo.
 
-## 4. Verify (must pass before commit)
+## Finish
 
-```sh
-.venv/bin/ruff check . --fix && .venv/bin/ruff check .
-.venv/bin/pytest -x -q
-```
-
-## 5. Record and exit
-
-Check the item off (`[ ]` → `[x]`). Put any new gotcha at the bottom of `AGENT.md`. Put any
-unavoidable follow-up under `## Discovered` in `fix_plan.md` as `- [ ] P2 — ...`. Then
-`git add -A && git commit -m "<scope>: <what>"` and stop. One item per loop.
+Make sure the last commit has passing tests. Then print: the minutes elapsed, the items done
+and still pending, and any `## Discovered` follow-ups. Stop.

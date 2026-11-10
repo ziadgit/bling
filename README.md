@@ -5,13 +5,17 @@ Text or call Bling where you're going. It checks live traffic and transit with *
 ask for a **voice link**: hear the recommendation (Deepgram TTS), or record your situation and
 let Bling re-decide with it (Deepgram transcription).
 
-This branch (`fast-27`) is a **27-minute Ralph build**: `SPEC.md` + `fix_plan.md` (7 items).
+This branch (`fast-27`) is a **27-minute single-session build**: `SPEC.md` + `fix_plan.md` (7 items).
 
 ## Build it
 
 ```sh
-./ralph.sh     # claude --dangerously-skip-permissions, one fix_plan item per iteration, 27-minute hard stop
+claude --dangerously-skip-permissions "$(cat PROMPT.md)"
 ```
+
+Claude works through `fix_plan.md`, committing after each item, and wraps up at the 25-minute
+mark. `--dangerously-skip-permissions` means it runs every command without asking, so only run
+it in this repo. Esc interrupts it; if anything is left, say "continue with PROMPT.md".
 
 ## Set up the services (after the build)
 
@@ -24,4 +28,5 @@ This branch (`fast-27`) is a **27-minute Ralph build**: `SPEC.md` + `fix_plan.md
    SMS enabled, then attach the Bling assistant under Inbound Settings. Vapi SMS is US-to-US only,
    you must text first, and the Vapi account needs a payment method (otherwise replies silently
    don't send).
-5. Text it: "Union Station by 6, can I get a voice review?" or "I want to explain my situation by voice."
+5. Text it: "Oakland to Salesforce Transit Center by 6, can I get a voice review?" or
+   "I'm going to SFO, I want to explain my situation by voice."
