@@ -6,8 +6,8 @@ LANDING_HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bling · drive or transit, by voice</title>
-<meta name="description" content="Call Bling, say where you're going, and hear whether to drive or take transit. Live Bay Area conditions from Exa, decided by Jev, spoken through Vapi and Deepgram.">
+<title>Bling · call (510) 347-7094</title>
+<meta name="description" content="Call Bling at (510) 347-7094, say where you're going, and hear whether to drive or take transit. Live Bay Area conditions from Exa, decided by Jev, spoken through Vapi and Deepgram.">
 <style>
 :root{--bg:#0b0d12;--panel:#12151d;--line:#232836;--text:#eef1f7;--muted:#9aa3b5;
 --green:#22c55e;--amber:#f59e0b;--red:#ef4444;--accent:#7c6cff;color-scheme:dark}
@@ -47,6 +47,13 @@ h2{font-size:1.5rem;margin:0 0 20px;letter-spacing:-.01em}
 ul.rules{list-style:none;padding:0;margin:0;display:grid;gap:10px}
 ul.rules li{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
 ul.rules b{color:var(--text)}
+.phone{display:inline-flex;align-items:center;gap:14px;margin:4px auto 18px;padding:16px 26px;border-radius:18px;
+background:var(--green);color:#04130a;text-decoration:none;font-weight:800;font-size:clamp(1.5rem,5vw,2.1rem);letter-spacing:-.01em;
+box-shadow:0 10px 30px -10px rgba(34,197,94,.6)}
+.phone:hover{filter:brightness(1.07)}
+.phone svg{width:1.1em;height:1.1em;flex:none}
+.sub{color:var(--muted);font-size:.95rem;margin:0 0 26px}
+.sub b{color:var(--text)}
 footer{padding:40px 0 60px;text-align:center;color:var(--muted);font-size:.9rem}
 footer a{color:var(--text)}
 code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
@@ -56,8 +63,10 @@ code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--pane
 <div class="wrap">
 <header>
   <div class="light" aria-hidden="true"><i></i><i></i><i></i></div>
-  <h1>Drive or transit?<br><span>Just ask Bling.</span></h1>
-  <p class="lede">Call a phone number and say where you're going. Bling checks live Bay Area traffic and transit, a decision model makes the call, and you hear the answer with the reason, in seconds.</p>
+  <h1>Drive or transit?<br><span>Just call Bling.</span></h1>
+  <p class="lede">Call the number below and say where you're going. Bling checks live Bay Area traffic and transit, a decision model makes the call, and you hear the answer with the reason, in seconds.</p>
+  <a class="phone" href="tel:+15103477094" aria-label="Call Bling at 510 347 7094"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>(510) 347-7094</a>
+  <p class="sub">It's a <b>phone call</b>: no app, no texting, no sign-up. Just talk.</p>
   <div class="cta">
     <a class="btn primary" href="https://github.com/ziadgit/bling">View on GitHub</a>
     <a class="btn" href="#how">How it works</a>
@@ -65,6 +74,7 @@ code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--pane
 </header>
 
 <section aria-label="Example call">
+  <h2 style="text-align:center">What a call sounds like</h2>
   <div class="call">
     <div class="msg"><div class="who">Bling</div><div class="bubble">Hey, it's Bling. Where are you headed?</div></div>
     <div class="msg you"><div class="who">You</div><div class="bubble">Salesforce Transit Center, from Oakland. I need to be there by six, and I've got two suitcases.</div></div>
@@ -77,7 +87,7 @@ code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--pane
 <section id="how">
   <h2>How it works</h2>
   <div class="grid">
-    <div class="card"><div class="step">01 · VAPI</div><b>You call</b><p>Vapi runs the phone call: the number, turn-taking and interruptions, and calling Bling's one tool.</p></div>
+    <div class="card"><div class="step">01 · VAPI</div><b>You call</b><p>Dial (510) 347-7094. Vapi runs the phone call: the number, turn-taking and interruptions, and calling Bling's one tool.</p></div>
     <div class="card"><div class="step">02 · DEEPGRAM</div><b>It listens</b><p>Nova-3 transcribes you, tuned for 24 Bay Area names like BART, Caltrain, I-880 and SFO.</p></div>
     <div class="card"><div class="step">03 · EXA</div><b>It looks</b><p>Two live searches run at once, for today's traffic incidents and today's transit alerts, returned as structured data.</p></div>
     <div class="card"><div class="step">04 · JEV</div><b>It decides</b><p>Jev weighs the conditions and anything you mentioned (luggage, kids, budget, a hurry) and picks drive, transit or either.</p></div>
@@ -97,7 +107,7 @@ code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--pane
 
 <footer>
   Built at a hackathon by Claude Code, from a written spec, in a timed session ·
-  <a href="https://github.com/ziadgit/bling">source</a> · <a href="/healthz">status</a>
+  <a href="tel:+15103477094">(510) 347-7094</a> · <a href="https://github.com/ziadgit/bling">source</a> · <a href="/healthz">status</a>
 </footer>
 </div>
 </body>

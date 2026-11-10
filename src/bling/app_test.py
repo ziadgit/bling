@@ -27,6 +27,7 @@ def test_healthz_and_nothing_else(client):
     assert page.status_code == 200 and "text/html" in page.headers["content-type"]
     assert "Bling" in page.text and "github.com/ziadgit/bling" in page.text
     assert "<script src" not in page.text
+    assert 'href="tel:+15103477094"' in page.text and "(510) 347-7094" in page.text
 
 
 def test_webhook_auth_and_tools(client):

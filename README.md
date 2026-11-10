@@ -4,7 +4,9 @@
 
 **Call a phone number, say where you're going, and hear whether to drive or take transit.**
 
-🌐 **[bling-wheat.vercel.app](https://bling-wheat.vercel.app)**
+📞 **Call [(510) 347-7094](tel:+15103477094)** · 🌐 [bling-wheat.vercel.app](https://bling-wheat.vercel.app)
+
+It's a phone call: no app, no texting, no sign-up.
 
 Live Bay Area traffic and transit conditions · a decision model makes the call · all by voice
 
