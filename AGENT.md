@@ -3,8 +3,8 @@
 ## Project
 
 **Bling**: text or call where you're going, and it says drive or take transit. Exa `/search`
-provides live conditions, Jev (TypeSafe) decides, Vapi runs voice and SMS chat, and Deepgram does
-the voice links (TTS review page, record-and-transcribe explain page). `SPEC.md` is the source
+provides live conditions, Jev (TypeSafe) decides, Vapi runs the phone call, and Deepgram does
+the call's transcription and voice inside Vapi (plus CLI testing with --audio/--say). `SPEC.md` is the source
 of truth. `fix_plan.md` is the backlog.
 
 ## Bootstrap

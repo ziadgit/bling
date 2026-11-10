@@ -1,12 +1,14 @@
 # Bling: the build spec (single source of truth)
 
-Text or call Bling where you're going. It checks live traffic and transit conditions with **Exa**,
-lets **Jev** decide, and answers **drive** or **take transit**, with the reason. Over text, you
-can ask for a **voice link**:
+**Call** Bling and say where you're going. It checks live traffic and transit conditions with
+**Exa**, lets **Jev** decide, and tells you **drive** or **take transit**, with the reason.
+Voice only: no SMS, no links.
 
-- **review**: a page that plays the recommendation, spoken by **Deepgram** TTS.
-- **explain**: a page where you record yourself explaining your situation. Deepgram transcribes
-  it, Jev re-decides with that context, and the page shows the answer and speaks it.
+- **Vapi** runs the phone call: the number, turn-taking and interruptions, the conversation LLM,
+  and calling Bling's `plan_trip` tool through the webhook.
+- **Deepgram** is Vapi's ears and mouth: Nova-3 transcription (boosted with Bay Area place and
+  transit names) and an Aura voice, billed to the user's own Deepgram key via a Vapi credential.
+  Bling also calls Deepgram directly from the CLI, to test hearing and speaking without a phone.
 
 Every decision here is final. Do not re-open it. If something is truly impossible as written,
 make the smallest change, record it in `AGENT.md` "Gotchas", and move on.
@@ -22,17 +24,15 @@ src/bling/
   conditions.py    Exa searches → Conditions
   decision.py      Jev → Recommendation
   pipeline.py      plan_trip(), reply_text()
-  deepgram.py      DeepgramClient: transcribe(), speak()
-  links.py         LinkStore: tokens for review/explain links
-  pages.py         the two HTML pages (inline strings, no templates dir)
-  vapi.py          webhook handling, assistant definition, VapiApi (sync)
+  deepgram.py      DeepgramClient: transcribe(), speak() (CLI testing only)
+  vapi.py          webhook handling, assistant definition, KEYTERMS, VapiApi (sync)
   app.py           create_app() FastAPI
   cli.py           typer: ask, serve, vapi-sync
   *_test.py        tests beside code
 ```
 
 Python ≥ 3.11, uv, hatchling, `src/` layout. Runtime deps: `exa-py`, `typesafe-sdk>=0.7.5,<0.8`,
-`fastapi`, `uvicorn`, `typer`, `pydantic-settings`, `httpx`, `python-multipart`. Dev group
+`fastapi`, `uvicorn`, `typer`, `pydantic-settings`, `httpx`. Dev group
 (PEP 735 `[dependency-groups].dev`): `pytest`, `pytest-asyncio`, `respx`, `ruff`. Pytest:
 `testpaths=["src"]`, `python_files=["*_test.py"]`, `asyncio_mode="auto"`. Ruff: line length 100,
 `extend-exclude=["reference"]`. The console script `bling = "bling.cli:app"`.
@@ -51,13 +51,13 @@ objects for Exa and Jev (they are duck-typed parameters, not imported clients). 
 | exa_api_key, typesafe_api_key, deepgram_api_key, vapi_api_key, vapi_server_secret | `SecretStr \| None` | None |
 | vapi_assistant_id | `str \| None` | None |
 | vapi_llm_provider / vapi_llm_model | str | `"openai"` / `"gpt-4.1"` |
+| vapi_voice_id | str | `"asteria"` (a Deepgram Aura voice in Vapi) |
 | jev_model | str | `"jev-1.13.0"` |
 | deepgram_stt_model / deepgram_tts_model | str | `"nova-3"` / `"aura-2-thalia-en"` |
 | bling_region | str | `"San Francisco Bay Area, CA"` |
 | bling_data_dir | Path | `Path("data")` |
 | public_base_url | `str \| None` | None (https, no trailing slash) |
 | exa_timeout_s / jev_timeout_s / plan_deadline_s | float | 5.0 / 2.5 / 8.0 |
-| link_ttl_hours | int | 24 |
 
 `require(value, name) -> str` returns `value.get_secret_value()`, or raises
 `RuntimeError(f"{name} is not set")`. A missing key fails where it is used, never at import.
@@ -187,101 +187,95 @@ deadline is cancelled. If `exa` is `None`, conditions are empty with `missing=["
 
 ## 6. Deepgram (`deepgram.py`), using the user's own `DEEPGRAM_API_KEY`
 
+On calls, Vapi talks to Deepgram (see §7). Bling's own client exists so the CLI can test the same
+ears and voice without a phone call.
+
 `DeepgramClient(api_key, http: httpx.AsyncClient, stt_model, tts_model)`:
-- `async transcribe(audio: bytes, content_type: str) -> str`: `POST
-  https://api.deepgram.com/v1/listen?model={stt_model}&smart_format=true`, headers
-  `Authorization: Token {key}` and `Content-Type: {content_type}`, raw bytes as the body. Returns
-  `results.channels[0].alternatives[0].transcript` (`""` if missing). Timeout 30 s. A non-2xx
-  response raises `RuntimeError("deepgram listen HTTP <code>")`.
+- `async transcribe(audio: bytes, content_type: str, keyterms: list[str] = []) -> str`: `POST
+  https://api.deepgram.com/v1/listen?model={stt_model}&smart_format=true` plus one repeated
+  `keyterm=<term>` query param per keyterm (httpx `params` as a list of tuples). Headers are
+  `Authorization: Token {key}` and `Content-Type: {content_type}`, with raw bytes as the body.
+  Returns `results.channels[0].alternatives[0].transcript` (`""` if missing). Timeout 30 s. A
+  non-2xx response raises `RuntimeError("deepgram listen HTTP <code>")`.
 - `async speak(text: str) -> bytes`: `POST https://api.deepgram.com/v1/speak?model={tts_model}`,
-  JSON `{"text": text}`, the same auth header. Returns the MP3 bytes (the default encoding).
-  Timeout 30 s. Same error rule.
-Tests use `respx`, asserting the URL, the query params, the auth header and the body.
+  JSON `{"text": text}`, the same auth header. Returns MP3 bytes. Timeout 30 s. Same error rule.
+Tests use `respx`, asserting the URL, the repeated keyterm params, the auth header and the body.
 
-## 7. Links (`links.py`, `pages.py`)
-
-`LinkStore(dir: Path, ttl_hours)` stores one JSON file per token at
-`{bling_data_dir}/links/{token}.json`. Tokens are `secrets.token_urlsafe(16)`. Records:
-`{"kind": "review"|"explain", "created": epoch, "trip": TripRequest, "rec": Recommendation|None,
-"used": bool}`. `get()` returns `None` for unknown, expired or malformed tokens. Tokens must match
-`^[A-Za-z0-9_-]{16,32}$` before touching the filesystem (no path traversal). The audio cache is
-`{token}.mp3` beside the JSON.
-
-Routes (in `app.py`):
-- `GET /v/{token}`: the review page. The verdict text, plus `<audio controls autoplay
-  src="/v/{token}/audio">`. 404 page if the token is bad.
-- `GET /v/{token}/audio`: `audio/mpeg`. Calls `speak(rec.text)` once and caches the MP3.
-- `GET /e/{token}`: the explain page. "Tell me about your trip to {destination}", a
-  record/stop button using `MediaRecorder`, which uploads the blob to `/e/{token}/audio` with
-  `fetch` (multipart field `audio`). It then shows the returned `text` and plays `audio_url`.
-- `POST /e/{token}/audio`: requires `kind=="explain"` and `used==false`, otherwise 409/404.
-  Rejects uploads over 10 MB (413). Calls `transcribe` (content type from the upload, default
-  `audio/webm`). An empty transcript gives 422 `{"error": "I didn't catch that, try again."}`.
-  Otherwise it sets `trip.situation = transcript`, runs `plan_trip`, stores the rec, sets
-  `used=true`, creates a **review** token for that rec, and returns `{"text": rec.text,
-  "audio_url": "/v/{review_token}/audio", "transcript": transcript}`.
-The pages are small inline HTML strings, mobile-friendly, with all values HTML-escaped. No
-external scripts.
-
-## 8. Vapi (`vapi.py`): one assistant for voice calls and SMS chat
+## 7. Vapi (`vapi.py`): the phone assistant
 
 **Webhook `POST /vapi/webhook`.** It requires the header `x-bling-secret` to equal
 `VAPI_SERVER_SECRET` (`hmac.compare_digest`). If it's unset or wrong, respond 401. The body is
-`{"message": {"type": ..., "toolCallList": [{"id", "function": {"name", "arguments"}}]}}`.
-`arguments` may be a dict or a JSON string. For `type=="tool-calls"`, run every call concurrently and
-respond 200 `{"results": [{"name": n, "toolCallId": id, "result": "<string>"}]}` (or `"error"`
-in place of `"result"` on failure; never both). For any other type, respond 200 `{}`.
+`{"message": {"type": ..., "toolCallList": [{"id", "function": {"name", "arguments"}}]}}`, where
+`arguments` may be a dict or a JSON string. For `type=="tool-calls"`, run every call concurrently
+and respond 200 `{"results": [{"name": n, "toolCallId": id, "result": "<string>"}]}`, with
+`"error"` in place of `"result"` on failure (never both). For any other type, respond 200 `{}`.
 
-Tools:
-- `plan_trip(destination: str, origin?: str, arrive_by?: str)` returns `reply_text(rec)`.
-- `voice_link(mode: "review"|"explain", destination: str, origin?: str, arrive_by?: str)`:
-  - review: runs `plan_trip`, stores a review token, returns
-    `"{rec.text} Listen here: {public_base_url}/v/{token}"`.
-  - explain: stores an explain token (no rec yet), returns
-    `"Record your situation here and I'll decide with it: {public_base_url}/e/{token}"`.
-  - If `public_base_url` is unset, returns error "Voice links aren't set up yet."
+**One tool:** `plan_trip(destination: str, origin?: str, arrive_by?: str, situation?: str)`,
+which returns `reply_text(rec)`. The `situation` parameter description: "Anything the caller said
+about their circumstances that could change the choice: luggage, kids, mobility, budget, parking,
+being in a hurry, the weather where they are. Omit it if they said nothing." The tool also has
+`"messages": [{"type": "request-start", "content": "Let me check the roads and transit."}]`
+so the caller hears something while Exa and Jev run.
+
+**Keyterms.** `KEYTERMS: list[str]` is a constant of Bay Area names Nova-3 should hear reliably:
+`["BART", "Muni", "Caltrain", "AC Transit", "VTA", "SamTrans", "Golden Gate Transit",
+"Salesforce Transit Center", "Embarcadero", "SFO", "Oakland Airport", "San Jose Airport",
+"Bay Bridge", "Golden Gate Bridge", "San Mateo Bridge", "Dumbarton Bridge", "Richmond Bridge",
+"US-101", "I-80", "I-280", "I-580", "I-680", "I-880", "Highway 1"]`. Used both in the
+assistant's transcriber and in `bling ask --audio`.
 
 **Assistant definition** `assistant_body(settings) -> dict`:
 ```python
 {"name": "Bling",
  "firstMessage": "Hey, it's Bling. Where are you headed?",
- "transcriber": {"provider": "deepgram", "model": settings.deepgram_stt_model},
- "voice": {"provider": "deepgram", "voiceId": "asteria"},
+ "transcriber": {"provider": "deepgram", "model": settings.deepgram_stt_model, "language": "en",
+                 "keyterm": KEYTERMS, "endpointing": 300},
+ "voice": {"provider": "deepgram", "voiceId": settings.vapi_voice_id},
  "model": {"provider": settings.vapi_llm_provider, "model": settings.vapi_llm_model,
            "messages": [{"role": "system", "content": SYSTEM_PROMPT}],
-           "tools": [<plan_trip function tool>, <voice_link function tool>]},
+           "tools": [<plan_trip function tool>]},
  "server": {"url": f"{public_base_url}/vapi/webhook",
             "headers": {"x-bling-secret": <secret>}},
- "serverMessages": ["tool-calls"]}
+ "serverMessages": ["tool-calls"],
+ # only when DEEPGRAM_API_KEY is set: Vapi then bills Deepgram usage to the user's own account
+ "credentials": [{"provider": "deepgram", "apiKey": <deepgram key>}]}
 ```
-Function tools look like `{"type": "function", "function": {"name", "description", "parameters": <JSON schema>}}`.
-`SYSTEM_PROMPT` (a constant): "You are Bling. You help someone decide whether to drive or take
-public transit. Get the destination (and the origin and arrival time if they offer them), then
-call plan_trip and relay its answer briefly, word for word on facts. Never guess traffic or
-transit conditions yourself. In a text conversation: if the person wants to hear the
-recommendation, call voice_link with mode "review"; if they want to explain their situation by
-voice, call voice_link with mode "explain". Send the link exactly as returned. Keep replies
-under two sentences."
+A function tool is `{"type": "function", "function": {"name", "description", "parameters": <JSON
+schema>}, "messages": [...]}`. `endpointing: 300` follows Vapi's guidance for short, one-word
+answers like "SFO". `SYSTEM_PROMPT` is a constant: "You are Bling, a voice assistant that helps someone in
+the San Francisco Bay Area decide whether to drive or take public transit. Get the destination,
+and the origin and arrival time if they offer them. If they mention their circumstances
+(luggage, kids, mobility, budget, parking, urgency), pass them as situation. Ask at most one
+short follow-up. Then call plan_trip and say its answer in your own words, keeping every fact.
+Never guess traffic or transit conditions yourself. Speak in short sentences. No lists, no URLs."
 
 **`VapiApi(api_key, http)`**: `create_assistant(body)` is `POST https://api.vapi.ai/assistant`,
 and `update_assistant(id, body)` is `PATCH https://api.vapi.ai/assistant/{id}`, both with
-`Authorization: Bearer`. A non-2xx response raises with the status code.
+`Authorization: Bearer`. A non-2xx response raises with the status code and Vapi's error
+message, which must never echo the request body (it contains keys).
 
-## 9. App and CLI
+## 8. App (`app.py`)
 
-`create_app(settings=None, *, exa=None, jev=None, deepgram=None) -> FastAPI`. In the lifespan,
-it builds real clients from the keys that are set (`AsyncExa(api_key=...)`,
-`AsyncTypeSafeClient(...)`, `DeepgramClient` with a shared `httpx.AsyncClient`) unless injected
-(tests inject fakes), and closes them on shutdown. Routes: `/vapi/webhook`, `/v/*`, `/e/*`,
-`GET /healthz` → `{"status": "ok"}`. `docs_url=None, redoc_url=None, openapi_url=None`.
+`create_app(settings=None, *, exa=None, jev=None) -> FastAPI`. In the lifespan, it builds real
+clients from the keys that are set (`AsyncExa(api_key=...)`, `AsyncTypeSafeClient(...)`) unless
+injected (tests inject fakes), and closes them on shutdown. Routes: `POST /vapi/webhook` and
+`GET /healthz` → `{"status": "ok"}`, nothing else. `docs_url=None, redoc_url=None, openapi_url=None`.
 
-CLI (`typer`):
-- `bling ask DESTINATION [--from ORIGIN] [--by TIME] [--situation TEXT]` runs `plan_trip` with
-  the real clients and prints `reply_text`.
+## 9. CLI (`cli.py`)
+
+- `bling ask DESTINATION [--from ORIGIN] [--by TIME] [--situation TEXT] [--audio FILE] [--say OUT.mp3]`
+  runs `plan_trip` with the real clients and prints `reply_text`.
+  - `--audio FILE`: transcribe the file with Deepgram (content type from the extension: wav,
+    mp3, m4a, webm, ogg, flac, defaulting to `application/octet-stream`) using `KEYTERMS`. Print
+    `heard: <transcript>`, then use the transcript as `situation`. If `--situation` is also given,
+    join them with " ".
+  - `--say OUT.mp3`: write the reply as speech with Deepgram TTS (`deepgram_tts_model`).
+  - Either flag without `DEEPGRAM_API_KEY` exits 1 with "DEEPGRAM_API_KEY is not set".
 - `bling serve [--host 127.0.0.1] [--port 8000]`.
 - `bling vapi-sync` builds `assistant_body`. It requires `VAPI_API_KEY`, `VAPI_SERVER_SECRET`
   and `PUBLIC_BASE_URL`. It PATCHes if `VAPI_ASSISTANT_ID` is set, otherwise POSTs and prints
-  "Add VAPI_ASSISTANT_ID=<id> to .env".
+  "Add VAPI_ASSISTANT_ID=<id> to .env". With `--dry-run` it prints the body with every secret
+  replaced by `"***"` and sends nothing.
 
 ## 10. Privacy and secrets
 
