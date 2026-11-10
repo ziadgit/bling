@@ -42,3 +42,8 @@ uv sync     # creates .venv with the runtime deps + the dev group
 - `vapi.mask_secrets` masks the `apiKey` and `x-bling-secret` keys (used by `vapi-sync --dry-run`).
   `VapiApi` errors include Vapi's `message`, with the API key and any body secrets scrubbed out,
   because Vapi validation messages can quote the values they reject.
+- Deepgram keyterms go as repeated `keyterm=` query params (httpx `params` as a list of tuples).
+- typer `Path` options trip ruff B008; `typer.Option`/`typer.Argument` are listed under
+  `[tool.ruff.lint.flake8-bugbear] extend-immutable-calls`.
+- `bling ask --audio` checks for `DEEPGRAM_API_KEY` before running anything, and transcribes
+  before it builds the Exa/Jev clients, so the `heard:` line prints first.

@@ -1,4 +1,6 @@
-"""Deepgram speech-to-text and text-to-speech over raw HTTP."""
+"""Deepgram STT and TTS over raw HTTP, for the CLI (on calls, Vapi talks to Deepgram)."""
+
+from collections.abc import Sequence
 
 import httpx
 
@@ -14,10 +16,14 @@ class DeepgramClient:
     def _auth(self) -> dict[str, str]:
         return {"Authorization": f"Token {self._key}"}
 
-    async def transcribe(self, audio: bytes, content_type: str) -> str:
+    async def transcribe(
+        self, audio: bytes, content_type: str, keyterms: Sequence[str] = ()
+    ) -> str:
+        params = [("model", self.stt_model), ("smart_format", "true")]
+        params += [("keyterm", term) for term in keyterms]
         r = await self._http.post(
             f"{BASE}/listen",
-            params={"model": self.stt_model, "smart_format": "true"},
+            params=params,
             headers={**self._auth(), "Content-Type": content_type},
             content=audio,
             timeout=TIMEOUT,

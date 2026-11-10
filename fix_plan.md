@@ -12,6 +12,6 @@
 
 - [x] P0 — remove the link flow: delete links.py, pages.py and their tests, the /v and /e routes, the python-multipart dep, `link_ttl_hours`; add `vapi_voice_id`; app_test covers only /vapi/webhook + /healthz — spec: SPEC.md §0, §1, §8
 - [x] P0 — vapi.py: drop voice_link; plan_trip gains `situation` + request-start message; KEYTERMS; new assistant_body (keyterm, endpointing 300, voice id, deepgram credentials only when the key is set); new SYSTEM_PROMPT; update tests — spec: SPEC.md §7
-- [ ] P0 — deepgram.transcribe keyterms (repeated params); cli `ask --audio/--say`, `vapi-sync --dry-run` (secrets masked); tests; README "Run it" for voice — spec: SPEC.md §6, §9
+- [x] P0 — deepgram.transcribe keyterms (repeated params); cli `ask --audio/--say`, `vapi-sync --dry-run` (secrets masked); tests; README "Run it" for voice — spec: SPEC.md §6, §9
 
 ## Discovered
