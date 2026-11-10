@@ -3,7 +3,7 @@
 The spec phase (`PROMPT_FILE=PROMPT.spec.md ./ralph.sh`) writes one spec per loop, top to bottom.
 Check a spec off only once it is written and self-checked.
 
-- [ ] 00-architecture: modules, data flow, directory layout, CLI and HTTP surface
+- [x] 00-architecture: modules, data flow, directory layout, CLI and HTTP surface
 - [ ] 01-scaffold: pyproject (uv, hatchling, src layout, PEP 735 dev group), Settings, logging, test layout
 - [ ] 02-domain-model: TripRequest, Conditions, Incident, TransitAlert, Recommendation, caller profile store (SQLite)
 - [ ] 03-exa-conditions: Exa `/search` calls (queries, objectives, output schemas, system prompts, freshness, timeouts, fakes)
@@ -17,3 +17,11 @@ Check a spec off only once it is written and self-checked.
 - [ ] 11-ops: deploy, secrets, structured logs, cost tracking
 
 ## Discovered
+
+Scope that spec 00 hands to later specs (no new spec files needed):
+- 01: Settings must include client timeouts (Exa, Jev, travel, web_search), the default city or region, and per-unit prices. `logs.py`, not `logging.py`. `privacy.redact()`.
+- 02: `TripRequest.origin_source: "request" | "profile" | "none"`, `CostLine`, `Conditions.costs`, `Recommendation.costs`, `PlanResult.costs`.
+- 03/05: a mypy conformance check (`AsyncExa` → `ExaSearcher`, `AsyncTypeSafeClient` → `JevClient`). 05 confirms the TypeSafe SDK uses httpx.
+- 06: the deadline split inside 8 s at the HTTP boundary, and the "no verdict without Jev" reply.
+- 08: also owns `parse.py`, free text → TripRequest, reused by `bling ask`.
+- 09: `app.py` (not `http.py`), docs routes disabled, `__main__.py`.
