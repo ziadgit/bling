@@ -47,3 +47,8 @@ uv sync     # creates .venv with the runtime deps + the dev group
   `[tool.ruff.lint.flake8-bugbear] extend-immutable-calls`.
 - `bling ask --audio` checks for `DEEPGRAM_API_KEY` before running anything, and transcribes
   before it builds the Exa/Jev clients, so the `heard:` line prints first.
+- Vercel: `api/index.py` is the entrypoint (it puts `src/` on `sys.path`). Vercel detects FastAPI
+  and routes every path to the app itself, so don't add a catch-all rewrite (it would turn every
+  path into `/api/index`). Vercel has no Python 3.11, so `.python-version` is listed in
+  `.vercelignore` and Vercel uses 3.12. Clients are also built lazily on the first webhook call,
+  because the serverless runtime may skip the lifespan.

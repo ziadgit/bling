@@ -1,0 +1,12 @@
+.venv
+.env
+.env*
+!.env.example
+logs
+data
+reference
+.claude
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.python-version

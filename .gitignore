@@ -19,3 +19,7 @@ logs/
 data/
 .DS_Store
 .build_start
+
+# Vercel
+.vercel/
+.vercel

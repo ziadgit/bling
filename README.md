@@ -4,6 +4,8 @@
 
 **Call a phone number, say where you're going, and hear whether to drive or take transit.**
 
+🌐 **[bling-wheat.vercel.app](https://bling-wheat.vercel.app)**
+
 Live Bay Area traffic and transit conditions · a decision model makes the call · all by voice
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
@@ -12,7 +14,7 @@ Live Bay Area traffic and transit conditions · a decision model makes the call 
 ![Deepgram](https://img.shields.io/badge/Deepgram-Nova--3%20%2B%20Aura-13EF93)
 ![Exa](https://img.shields.io/badge/Exa-live%20search-1F40ED)
 ![Jev](https://img.shields.io/badge/Jev-decision-F97316)
-![tests](https://img.shields.io/badge/tests-36%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-37%20passing-brightgreen)
 
 </div>
 
@@ -98,9 +100,9 @@ Without Exa or TypeSafe keys, `ask` still runs; it just tells you what it couldn
 
 1. Fill in `.env`: Exa, TypeSafe, Deepgram and Vapi keys, plus a webhook secret
    (`openssl rand -hex 32`).
-2. Start the server and expose it:
-   `bling serve` + `cloudflared tunnel --url http://localhost:8000`. Put the https URL in
-   `PUBLIC_BASE_URL`.
+2. Host the webhook. Either deploy to Vercel (`vercel deploy --prod`; `api/index.py` is the
+   entrypoint, and you set the keys with `vercel env add`), or run `bling serve` behind
+   `cloudflared tunnel --url http://localhost:8000`. Put the https URL in `PUBLIC_BASE_URL`.
 3. `bling vapi-sync --dry-run` to review the assistant, then `bling vapi-sync` to create it.
    Add the printed `VAPI_ASSISTANT_ID` to `.env` (later runs update it in place).
 4. Try it in the browser with **Talk to Assistant** in the Vapi dashboard.
@@ -130,13 +132,14 @@ src/bling/
   pipeline.py     plan_trip() under one deadline, reply_text() for speech
   vapi.py         webhook tool handling, assistant definition, KEYTERMS, Vapi REST client
   deepgram.py     direct STT/TTS, for testing hearing and speaking from the CLI
-  app.py          FastAPI: POST /vapi/webhook, GET /healthz
+  app.py          FastAPI: POST /vapi/webhook, GET /healthz, GET / (landing page)
+  landing.py      the landing page, inline HTML
   cli.py          bling ask | serve | vapi-sync
   *_test.py       tests beside the code
 ```
 
 ```sh
-.venv/bin/ruff check . && .venv/bin/pytest -q    # 36 tests, no network: respx + fakes
+.venv/bin/ruff check . && .venv/bin/pytest -q    # 37 tests, no network: respx + fakes
 ```
 
 ## How it was built
